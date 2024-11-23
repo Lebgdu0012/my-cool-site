@@ -1,36 +1,75 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Brookhaven RP - Rejoignez-nous !</title>
-    <link rel="stylesheet" href="styles.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Diffusion Vidéo en Direct</title>
+  <link rel="stylesheet" href="style.css"> <!-- Lien vers le fichier CSS externe -->
 </head>
 <body>
-    <header class="hero">
-        <div class="container">
-            <h1>Bienvenue à Brookhaven RP</h1>
-            <p>Explorez un monde ouvert et vivez des aventures incroyables dans Brookhaven RP !</p>
-            <!-- Lien pour ouvrir directement le jeu dans le client Roblox avec l'URL personnalisée -->
-            <a href="roblox-player:1+launchmode:play+gameinfo:UgVBjTXAz9Q7UlXhUEcQgGCMHBbzkZvRNeswzXiewVCnwI9pyN4UgZ8CecY4WyKdcyJ_2C-BKgpnkKBI-Vv-uq6h0WNehE1AuuhKngl5u-GLORqYPVmpMAwM6l_PPEyUbsmwZmOmMX4eksQJ0JiKVpLlyduVfb0htca9Hp61T5yyLSvJxzgqk3bTc_W7tFa8y14YGuHkWcJVUBzM7G_mOSy1AW2TJXLArk_5JHrSbpY+launchtime:1732364225367+placelauncherurl:https%3A%2F%2Fwww.roblox.com%2Ffr%2FGame%2FPlaceLauncher.ashx%3Frequest%3DRequestGame%26browserTrackerId%3D1723720966287012%26placeId%3D8792292189%26isPlayTogetherGame%3Dfalse%26joinAttemptId%3D8da136c4-bb6f-4afd-bc96-5c5bd2ec6a81%26joinAttemptOrigin%3DPlayButton+browsertrackerid:1723720966287012+robloxLocale:fr_fr+gameLocale:fr_fr+channel:+LaunchExp:InApp" class="play-btn">Jouer Maintenant</a>
-        </div>
-    </header>
-    <main>
-        <section id="game-preview" class="section">
-            <div class="container">
-                <h2>Aperçu du jeu</h2>
-                <iframe 
-                    src="https://www.roblox.com/games/8792292189/Brookhaven-Rp"
-                    width="100%" 
-                    height="600" 
-                    frameborder="0" 
-                    allowfullscreen>
-                </iframe>
-            </div>
-        </section>
-    </main>
-    <footer>
-        <p>&copy; 2024 Brookhaven Fans. Tous droits réservés.</p>
-    </footer>
+
+  <h1>Diffusion Vidéo en Direct</h1>
+
+  <div class="videos-container">
+    <video id="myVideo" autoplay muted></video> <!-- Vidéo de l'utilisateur -->
+    <video id="remoteVideo" autoplay></video> <!-- Vidéo des autres utilisateurs -->
+  </div>
+
+  <button id="startButton">Démarrer la caméra</button>
+
+  <script>
+    // Variables pour gérer les éléments vidéo et la connexion WebRTC
+    let localStream;
+    let peerConnection;
+    const myVideo = document.getElementById('myVideo');
+    const remoteVideo = document.getElementById('remoteVideo');
+    const startButton = document.getElementById('startButton');
+
+    // Fonction pour démarrer la caméra locale
+    async function startCamera() {
+      try {
+        // Accéder à la caméra de l'utilisateur
+        localStream = await navigator.mediaDevices.getUserMedia({ video: true });
+        myVideo.srcObject = localStream;  // Afficher la vidéo locale
+        startButton.disabled = true;      // Désactiver le bouton une fois la caméra lancée
+        
+        // Créer la connexion WebRTC pour diffuser la vidéo
+        createPeerConnection();
+      } catch (error) {
+        console.error('Erreur lors de l\'accès à la caméra', error);
+      }
+    }
+
+    // Fonction pour créer une connexion WebRTC
+    function createPeerConnection() {
+      const config = {
+        iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] // Serveur STUN pour obtenir les adresses IP publiques
+      };
+      peerConnection = new RTCPeerConnection(config);
+
+      // Ajouter le flux local (de la caméra) à la connexion WebRTC
+      localStream.getTracks().forEach(track => {
+        peerConnection.addTrack(track, localStream);
+      });
+
+      // Quand un flux distant est reçu, on l'affiche dans la vidéo distante
+      peerConnection.ontrack = (event) => {
+        remoteVideo.srcObject = event.streams[0];
+      };
+
+      // Créer une offre WebRTC (pour démarrer la communication)
+      peerConnection.createOffer()
+        .then(offer => peerConnection.setLocalDescription(offer))
+        .then(() => {
+          // Ici, on enverrait l'offre à un autre utilisateur via WebSocket ou autre mécanisme
+          // En simulation, on peut juste loguer l'offre
+          console.log('Offre WebRTC envoyée : ', peerConnection.localDescription);
+        });
+    }
+
+    // Écouteur pour démarrer la caméra
+    startButton.addEventListener('click', startCamera);
+  </script>
+
 </body>
 </html>
