@@ -3,168 +3,107 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Plateforme de Streaming P2P</title>
-  <link rel="stylesheet" href="style.css">
+  <title>Messagerie P2P</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+    }
+    #messages {
+      width: 100%;
+      height: 300px;
+      overflow-y: scroll;
+      border: 1px solid #ccc;
+      margin-bottom: 10px;
+      padding: 10px;
+    }
+    #inputMessage {
+      width: 100%;
+      padding: 10px;
+      margin-top: 10px;
+      border: 1px solid #ccc;
+    }
+  </style>
 </head>
 <body>
 
-  <h1>Plateforme de Streaming P2P</h1>
+  <h1>Messagerie P2P</h1>
+  
+  <div id="messages"></div>
+  <input type="text" id="inputMessage" placeholder="Écris un message..." />
 
-  <div id="videosContainer">
-    <!-- Les vidéos des utilisateurs seront ajoutées ici -->
-  </div>
-
-  <button id="startButton">Démarrer la caméra</button>
-
+  <script src="https://cdn.peerjs.com/1.3.1/peerjs.min.js"></script>
   <script>
-    const startButton = document.getElementById('startButton');
-    const videosContainer = document.getElementById('videosContainer');
-    let localStream;
-    let peerConnections = {};
-    let socket;
+    const messagesContainer = document.getElementById('messages');
+    const inputMessage = document.getElementById('inputMessage');
 
-    // Connexion WebSocket pour la signalisation entre utilisateurs
-    socket = new WebSocket('ws://localhost:8080');  // Changez cette URL selon votre configuration
-    
-    socket.onopen = () => {
-      console.log('Connecté au serveur WebSocket');
-    };
+    let peer;
+    let conn;
 
-    socket.onmessage = (message) => {
-      const data = JSON.parse(message.data);
-      
-      switch (data.type) {
-        case 'offer':
-          handleOffer(data);
-          break;
-        case 'answer':
-          handleAnswer(data);
-          break;
-        case 'ice-candidate':
-          handleIceCandidate(data);
-          break;
-        case 'new-user':
-          handleNewUser(data);
-          break;
-      }
-    };
-
-    // Fonction pour démarrer la caméra locale
-    async function startCamera() {
-      try {
-        // Demander l'accès à la caméra
-        localStream = await navigator.mediaDevices.getUserMedia({ video: true });
-
-        // Créer un élément vidéo pour afficher le flux local
-        const myVideo = document.createElement('video');
-        myVideo.srcObject = localStream;
-        myVideo.autoplay = true;
-        myVideo.muted = true; // On mute la vidéo locale pour éviter l'écho
-        myVideo.classList.add('video'); // Appliquer le style CSS
-
-        // Ajouter la vidéo locale au conteneur
-        videosContainer.appendChild(myVideo);
-
-        startButton.disabled = true; // Désactiver le bouton après démarrage
-
-        // Créer la connexion WebRTC pour partager la vidéo avec les autres utilisateurs
-        createPeerConnection();
-      } catch (error) {
-        console.error('Erreur lors de l\'accès à la caméra', error);
-      }
-    }
-
-    // Créer une connexion WebRTC pour chaque utilisateur
-    function createPeerConnection() {
-      const config = {
-        iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
-      };
-
-      // Créer un PeerConnection pour l'utilisateur local
-      const peerConnection = new RTCPeerConnection(config);
-
-      // Ajouter le flux local à la connexion
-      localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
-
-      peerConnections[peerConnection] = { local: true };
-
-      // Quand un flux distant est reçu, on l'affiche dans une vidéo
-      peerConnection.ontrack = (event) => {
-        const remoteVideo = document.createElement('video');
-        remoteVideo.srcObject = event.streams[0];
-        remoteVideo.autoplay = true;
-        remoteVideo.classList.add('video');
-        videosContainer.appendChild(remoteVideo);
-      };
-
-      peerConnection.onicecandidate = (event) => {
-        if (event.candidate) {
-          socket.send(JSON.stringify({ type: 'ice-candidate', candidate: event.candidate }));
-        }
-      };
-
-      // Créer une offre pour partager la vidéo
-      peerConnection.createOffer()
-        .then(offer => peerConnection.setLocalDescription(offer))
-        .then(() => {
-          socket.send(JSON.stringify({ type: 'offer', offer: peerConnection.localDescription }));
-        });
-    }
-
-    // Gérer l'offre WebRTC d'un autre utilisateur
-    function handleOffer(data) {
-      const peerConnection = new RTCPeerConnection({
-        iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+    // Crée un nouveau peer
+    function createPeer() {
+      peer = new Peer(undefined, {
+        host: 'peerjs.com', // Utilise le serveur de signalisation PeerJS public
+        secure: true,
+        port: 443,
       });
 
-      peerConnections[peerConnection] = { remote: true };
+      peer.on('open', (id) => {
+        console.log('Ton ID peer :', id);
+        // Affiche l'ID Peer
+        alert(`Ton ID Peer: ${id}`);
+      });
 
-      peerConnection.setRemoteDescription(new RTCSessionDescription(data.offer))
-        .then(() => {
-          return peerConnection.createAnswer();
-        })
-        .then(answer => {
-          return peerConnection.setLocalDescription(answer);
-        })
-        .then(() => {
-          socket.send(JSON.stringify({ type: 'answer', answer: peerConnection.localDescription }));
-        });
+      peer.on('connection', (connection) => {
+        // Lorsque la connexion est établie, elle est acceptée
+        conn = connection;
+        setupDataChannel(conn);
+      });
+    }
 
-      peerConnection.ontrack = (event) => {
-        const remoteVideo = document.createElement('video');
-        remoteVideo.srcObject = event.streams[0];
-        remoteVideo.autoplay = true;
-        remoteVideo.classList.add('video');
-        videosContainer.appendChild(remoteVideo);
-      };
+    function connectToPeer(peerId) {
+      // Connecte-toi à un autre utilisateur avec son ID Peer
+      conn = peer.connect(peerId);
+      setupDataChannel(conn);
+    }
 
-      peerConnection.onicecandidate = (event) => {
-        if (event.candidate) {
-          socket.send(JSON.stringify({ type: 'ice-candidate', candidate: event.candidate }));
+    function setupDataChannel(connection) {
+      // Crée un DataChannel pour l'envoi de messages
+      const dataChannel = connection;
+      
+      // Lorsque tu reçois un message
+      dataChannel.on('data', (data) => {
+        const messageElement = document.createElement('div');
+        messageElement.textContent = `Autre utilisateur: ${data}`;
+        messagesContainer.appendChild(messageElement);
+        messagesContainer.scrollTop = messagesContainer.scrollHeight; // Scroll automatique
+      });
+
+      // Lorsque tu envoies un message
+      inputMessage.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter' && inputMessage.value.trim() !== '') {
+          const message = inputMessage.value;
+          dataChannel.send(message);
+
+          const messageElement = document.createElement('div');
+          messageElement.textContent = `Toi: ${message}`;
+          messagesContainer.appendChild(messageElement);
+          messagesContainer.scrollTop = messagesContainer.scrollHeight; // Scroll automatique
+
+          inputMessage.value = ''; // Réinitialiser l'input
         }
-      };
+      });
     }
 
-    // Gérer la réponse d'un autre utilisateur
-    function handleAnswer(data) {
-      const peerConnection = Object.keys(peerConnections).find(pc => !peerConnections[pc].remote);
-      if (peerConnection) {
-        peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer));
-      }
+    // Créer un peer lorsqu'on charge la page
+    createPeer();
+    
+    // Demander à l'utilisateur de se connecter à un autre utilisateur via leur Peer ID
+    const peerId = prompt("Entrez l'ID Peer de la personne avec qui vous voulez discuter");
+    if (peerId) {
+      connectToPeer(peerId);
     }
-
-    // Gérer les ICE candidates
-    function handleIceCandidate(data) {
-      const peerConnection = Object.keys(peerConnections).find(pc => peerConnections[pc].local);
-      if (peerConnection) {
-        peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
-      }
-    }
-
-    // Démarrer la caméra quand le bouton est cliqué
-    startButton.addEventListener('click', startCamera);
 
   </script>
-
 </body>
 </html>
