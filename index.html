@@ -24,7 +24,7 @@
     let socket;
 
     // Connexion WebSocket pour la signalisation
-    socket = new WebSocket('ws://localhost:8080');
+    socket = new WebSocket('ws://localhost:8080');  // Changez cette URL si nécessaire pour votre serveur WebSocket
     
     socket.onopen = () => {
       console.log('Connecté au serveur WebSocket');
@@ -43,6 +43,9 @@
         case 'ice-candidate':
           handleIceCandidate(data);
           break;
+        case 'new-user':
+          handleNewUser(data);
+          break;
       }
     };
 
@@ -57,14 +60,14 @@
 
         startButton.disabled = true;
 
-        // Créer la connexion WebRTC pour diffuser la vidéo
+        // Créer la connexion WebRTC pour diffuser la vidéo à tous les autres utilisateurs
         createPeerConnection();
       } catch (error) {
         console.error('Erreur lors de l\'accès à la caméra', error);
       }
     }
 
-    // Créer une connexion WebRTC pour chaque utilisateur
+    // Créer une connexion WebRTC pour chaque utilisateur et envoyer le flux
     function createPeerConnection() {
       const config = {
         iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
@@ -86,7 +89,6 @@
         videosContainer.appendChild(remoteVideo);
       };
 
-      // Gérer les ICE candidates
       peerConnection.onicecandidate = (event) => {
         if (event.candidate) {
           socket.send(JSON.stringify({ type: 'ice-candidate', candidate: event.candidate }));
@@ -101,7 +103,7 @@
         });
     }
 
-    // Répondre à une offre WebRTC
+    // Gérer l'offre WebRTC d'un autre utilisateur
     function handleOffer(data) {
       const peerConnection = new RTCPeerConnection({
         iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
@@ -134,7 +136,7 @@
       };
     }
 
-    // Répondre à la réponse WebRTC
+    // Gérer la réponse d'un autre utilisateur
     function handleAnswer(data) {
       const peerConnection = Object.keys(peerConnections).find(pc => !peerConnections[pc].remote);
       if (peerConnection) {
@@ -150,8 +152,15 @@
       }
     }
 
+    // Gérer un nouvel utilisateur qui rejoint
+    function handleNewUser(data) {
+      // Envoyer une offre à ce nouvel utilisateur pour établir la connexion
+      createPeerConnection();
+    }
+
     // Démarrer la caméra quand le bouton est cliqué
     startButton.addEventListener('click', startCamera);
+
   </script>
 
 </body>
