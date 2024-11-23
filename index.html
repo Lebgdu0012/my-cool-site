@@ -52,13 +52,20 @@
     // Fonction pour démarrer la caméra locale
     async function startCamera() {
       try {
+        // Demander l'accès à la caméra
         localStream = await navigator.mediaDevices.getUserMedia({ video: true });
+
+        // Créer un élément vidéo pour afficher le flux local
         const myVideo = document.createElement('video');
         myVideo.srcObject = localStream;
         myVideo.autoplay = true;
+        myVideo.muted = true; // On mute la vidéo locale pour éviter l'écho
+        myVideo.classList.add('video'); // Appliquer le style CSS
+
+        // Ajouter la vidéo locale au conteneur
         videosContainer.appendChild(myVideo);
 
-        startButton.disabled = true;
+        startButton.disabled = true; // Désactiver le bouton après démarrage
 
         // Créer la connexion WebRTC pour partager la vidéo avec les autres utilisateurs
         createPeerConnection();
@@ -86,6 +93,7 @@
         const remoteVideo = document.createElement('video');
         remoteVideo.srcObject = event.streams[0];
         remoteVideo.autoplay = true;
+        remoteVideo.classList.add('video');
         videosContainer.appendChild(remoteVideo);
       };
 
@@ -126,6 +134,7 @@
         const remoteVideo = document.createElement('video');
         remoteVideo.srcObject = event.streams[0];
         remoteVideo.autoplay = true;
+        remoteVideo.classList.add('video');
         videosContainer.appendChild(remoteVideo);
       };
 
