@@ -4,35 +4,59 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Diffusion Vidéo en Direct</title>
-  <link rel="stylesheet" href="style.css"> <!-- Lien vers le fichier CSS externe -->
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
   <h1>Diffusion Vidéo en Direct</h1>
 
-  <div class="videos-container">
-    <video id="myVideo" autoplay muted></video> <!-- Vidéo de l'utilisateur -->
-    <video id="remoteVideo" autoplay></video> <!-- Vidéo des autres utilisateurs -->
+  <div id="videosContainer">
+    <!-- Les vidéos de tous les utilisateurs seront ajoutées ici -->
   </div>
 
   <button id="startButton">Démarrer la caméra</button>
 
   <script>
-    // Variables pour gérer les éléments vidéo et la connexion WebRTC
-    let localStream;
-    let peerConnection;
-    const myVideo = document.getElementById('myVideo');
-    const remoteVideo = document.getElementById('remoteVideo');
     const startButton = document.getElementById('startButton');
+    const videosContainer = document.getElementById('videosContainer');
+    let localStream;
+    let peerConnections = {};
+    let socket;
+
+    // Connexion WebSocket pour la signalisation
+    socket = new WebSocket('ws://localhost:8080');
+    
+    socket.onopen = () => {
+      console.log('Connecté au serveur WebSocket');
+    };
+
+    socket.onmessage = (message) => {
+      const data = JSON.parse(message.data);
+      
+      switch (data.type) {
+        case 'offer':
+          handleOffer(data);
+          break;
+        case 'answer':
+          handleAnswer(data);
+          break;
+        case 'ice-candidate':
+          handleIceCandidate(data);
+          break;
+      }
+    };
 
     // Fonction pour démarrer la caméra locale
     async function startCamera() {
       try {
-        // Accéder à la caméra de l'utilisateur
         localStream = await navigator.mediaDevices.getUserMedia({ video: true });
-        myVideo.srcObject = localStream;  // Afficher la vidéo locale
-        startButton.disabled = true;      // Désactiver le bouton une fois la caméra lancée
-        
+        const myVideo = document.createElement('video');
+        myVideo.srcObject = localStream;
+        myVideo.autoplay = true;
+        videosContainer.appendChild(myVideo);
+
+        startButton.disabled = true;
+
         // Créer la connexion WebRTC pour diffuser la vidéo
         createPeerConnection();
       } catch (error) {
@@ -40,34 +64,93 @@
       }
     }
 
-    // Fonction pour créer une connexion WebRTC
+    // Créer une connexion WebRTC pour chaque utilisateur
     function createPeerConnection() {
       const config = {
-        iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] // Serveur STUN pour obtenir les adresses IP publiques
+        iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
       };
-      peerConnection = new RTCPeerConnection(config);
 
-      // Ajouter le flux local (de la caméra) à la connexion WebRTC
-      localStream.getTracks().forEach(track => {
-        peerConnection.addTrack(track, localStream);
-      });
+      // Créer un peerConnection pour l'utilisateur local
+      const peerConnection = new RTCPeerConnection(config);
 
-      // Quand un flux distant est reçu, on l'affiche dans la vidéo distante
+      // Ajouter le flux local à la connexion
+      localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+
+      peerConnections[peerConnection] = { local: true };
+
+      // Quand un flux distant est reçu, on l'affiche dans une vidéo
       peerConnection.ontrack = (event) => {
+        const remoteVideo = document.createElement('video');
         remoteVideo.srcObject = event.streams[0];
+        remoteVideo.autoplay = true;
+        videosContainer.appendChild(remoteVideo);
       };
 
-      // Créer une offre WebRTC (pour démarrer la communication)
+      // Gérer les ICE candidates
+      peerConnection.onicecandidate = (event) => {
+        if (event.candidate) {
+          socket.send(JSON.stringify({ type: 'ice-candidate', candidate: event.candidate }));
+        }
+      };
+
+      // Créer une offre pour démarrer la connexion
       peerConnection.createOffer()
         .then(offer => peerConnection.setLocalDescription(offer))
         .then(() => {
-          // Ici, on enverrait l'offre à un autre utilisateur via WebSocket ou autre mécanisme
-          // En simulation, on peut juste loguer l'offre
-          console.log('Offre WebRTC envoyée : ', peerConnection.localDescription);
+          socket.send(JSON.stringify({ type: 'offer', offer: peerConnection.localDescription }));
         });
     }
 
-    // Écouteur pour démarrer la caméra
+    // Répondre à une offre WebRTC
+    function handleOffer(data) {
+      const peerConnection = new RTCPeerConnection({
+        iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+      });
+
+      peerConnections[peerConnection] = { remote: true };
+
+      peerConnection.setRemoteDescription(new RTCSessionDescription(data.offer))
+        .then(() => {
+          return peerConnection.createAnswer();
+        })
+        .then(answer => {
+          return peerConnection.setLocalDescription(answer);
+        })
+        .then(() => {
+          socket.send(JSON.stringify({ type: 'answer', answer: peerConnection.localDescription }));
+        });
+
+      peerConnection.ontrack = (event) => {
+        const remoteVideo = document.createElement('video');
+        remoteVideo.srcObject = event.streams[0];
+        remoteVideo.autoplay = true;
+        videosContainer.appendChild(remoteVideo);
+      };
+
+      peerConnection.onicecandidate = (event) => {
+        if (event.candidate) {
+          socket.send(JSON.stringify({ type: 'ice-candidate', candidate: event.candidate }));
+        }
+      };
+    }
+
+    // Répondre à la réponse WebRTC
+    function handleAnswer(data) {
+      const peerConnection = Object.keys(peerConnections).find(pc => !peerConnections[pc].remote);
+      if (peerConnection) {
+        peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer));
+      }
+    }
+
+    // Gérer les ICE candidates
+    function handleIceCandidate(data) {
+      const peerConnection = Object.keys(peerConnections).find(pc => peerConnections[pc].local);
+      if (peerConnection) {
+        peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
+      }
+    }
+
+    // Démarrer la caméra quand le bouton est cliqué
     startButton.addEventListener('click', startCamera);
   </script>
 
