@@ -3,15 +3,15 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Diffusion Vidéo en Direct</title>
+  <title>Plateforme de Streaming P2P</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-  <h1>Diffusion Vidéo en Direct</h1>
+  <h1>Plateforme de Streaming P2P</h1>
 
   <div id="videosContainer">
-    <!-- Les vidéos de tous les utilisateurs seront ajoutées ici -->
+    <!-- Les vidéos des utilisateurs seront ajoutées ici -->
   </div>
 
   <button id="startButton">Démarrer la caméra</button>
@@ -23,8 +23,8 @@
     let peerConnections = {};
     let socket;
 
-    // Connexion WebSocket pour la signalisation
-    socket = new WebSocket('ws://localhost:8080');  // Changez cette URL si nécessaire pour votre serveur WebSocket
+    // Connexion WebSocket pour la signalisation entre utilisateurs
+    socket = new WebSocket('ws://localhost:8080');  // Changez cette URL selon votre configuration
     
     socket.onopen = () => {
       console.log('Connecté au serveur WebSocket');
@@ -60,20 +60,20 @@
 
         startButton.disabled = true;
 
-        // Créer la connexion WebRTC pour diffuser la vidéo à tous les autres utilisateurs
+        // Créer la connexion WebRTC pour partager la vidéo avec les autres utilisateurs
         createPeerConnection();
       } catch (error) {
         console.error('Erreur lors de l\'accès à la caméra', error);
       }
     }
 
-    // Créer une connexion WebRTC pour chaque utilisateur et envoyer le flux
+    // Créer une connexion WebRTC pour chaque utilisateur
     function createPeerConnection() {
       const config = {
         iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
       };
 
-      // Créer un peerConnection pour l'utilisateur local
+      // Créer un PeerConnection pour l'utilisateur local
       const peerConnection = new RTCPeerConnection(config);
 
       // Ajouter le flux local à la connexion
@@ -95,7 +95,7 @@
         }
       };
 
-      // Créer une offre pour démarrer la connexion
+      // Créer une offre pour partager la vidéo
       peerConnection.createOffer()
         .then(offer => peerConnection.setLocalDescription(offer))
         .then(() => {
@@ -150,12 +150,6 @@
       if (peerConnection) {
         peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
       }
-    }
-
-    // Gérer un nouvel utilisateur qui rejoint
-    function handleNewUser(data) {
-      // Envoyer une offre à ce nouvel utilisateur pour établir la connexion
-      createPeerConnection();
     }
 
     // Démarrer la caméra quand le bouton est cliqué
