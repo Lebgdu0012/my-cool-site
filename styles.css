@@ -1,67 +1,55 @@
-/* Reset */
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-}
-
-/* Global Styles */
+/* Style global */
 body {
-    font-family: 'Arial', sans-serif;
-    line-height: 1.6;
-    color: #333;
-    background-color: #f9f9f9;
+  font-family: Arial, sans-serif;
+  background-color: #f4f4f9;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  flex-direction: column;
 }
 
-.container {
-    width: 90%;
-    max-width: 1200px;
-    margin: 0 auto;
+h1 {
+  color: #333;
+  font-size: 2rem;
+  margin-bottom: 20px;
 }
 
-h1, h2 {
-    text-align: center;
-    color: #444;
+/* Section contenant les vidéos */
+.videos-container {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  margin-bottom: 20px;
 }
 
-/* Header Section */
-.hero {
-    background: linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)), url('hero-background.jpg') no-repeat center center/cover;
-    color: #fff;
-    text-align: center;
-    padding: 5rem 0;
+video {
+  width: 45%;
+  height: auto;
+  border: 3px solid #333;
+  border-radius: 8px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 }
 
-.hero h1 {
-    font-size: 2.5rem;
+/* Style du bouton */
+#startButton {
+  padding: 15px 25px;
+  background-color: #4CAF50;
+  color: white;
+  font-size: 1.2rem;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background-color 0.3s;
 }
 
-.hero p {
-    margin: 1rem 0;
-    font-size: 1.2rem;
+#startButton:hover {
+  background-color: #45a049;
 }
 
-.play-btn {
-    display: inline-block;
-    padding: 0.8rem 1.5rem;
-    background: #f04;
-    color: #fff;
-    text-decoration: none;
-    border-radius: 5px;
-    font-size: 1rem;
-    transition: background 0.3s;
-}
-
-.play-btn:hover {
-    background: #c03;
-}
-
-/* Game Preview Section */
-.section {
-    padding: 3rem 0;
-}
-
-iframe {
-    border: 1px solid #ccc;
-    border-radius: 10px;
+#startButton:disabled {
+  background-color: #cccccc;
+  cursor: not-allowed;
 }
