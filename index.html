@@ -4,84 +4,18 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Messagerie P2P</title>
-  <style>
-    /* Ajoute ici le CSS de la partie précédente */
-  </style>
+  <!-- Lien vers le fichier CSS -->
+  <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-
   <h1>Messagerie P2P</h1>
-
   <div id="messages"></div>
   <input type="text" id="inputMessage" placeholder="Écris un message..." />
-
+  
+  <!-- Inclusion de PeerJS -->
   <script src="https://cdn.peerjs.com/1.3.1/peerjs.min.js"></script>
-  <script>
-    const messagesContainer = document.getElementById('messages');
-    const inputMessage = document.getElementById('inputMessage');
-    
-    let peer;
-    let conn;
-
-    function createPeer() {
-      peer = new Peer(undefined, {
-        host: 'peerjs.com',
-        secure: true,
-        port: 443,
-      });
-
-      peer.on('open', (id) => {
-        console.log('Ton ID peer :', id);
-        alert(`Ton ID Peer: ${id}`);
-      });
-
-      peer.on('connection', (connection) => {
-        conn = connection;
-        setupDataChannel(conn);
-      });
-    }
-
-    function connectToPeer(peerId) {
-      conn = peer.connect(peerId);
-      setupDataChannel(conn);
-    }
-
-    function setupDataChannel(connection) {
-      const dataChannel = connection;
-
-      // Lors de la réception d'un message
-      dataChannel.on('data', (data) => {
-        const messageElement = document.createElement('div');
-        messageElement.textContent = `Autre utilisateur: ${data}`;
-        messagesContainer.appendChild(messageElement);
-        messagesContainer.scrollTop = messagesContainer.scrollHeight;
-      });
-
-      // Lors de l'envoi d'un message
-      inputMessage.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter' && inputMessage.value.trim() !== '') {
-          const message = inputMessage.value;
-          dataChannel.send(message);
-
-          const messageElement = document.createElement('div');
-          messageElement.textContent = `Toi: ${message}`;
-          messagesContainer.appendChild(messageElement);
-          messagesContainer.scrollTop = messagesContainer.scrollHeight;
-
-          inputMessage.value = '';
-        }
-      });
-    }
-
-    // Créer un peer au démarrage
-    createPeer();
-    
-    // Connexion à un autre peer avec l'ID
-    const peerId = prompt("Entrez l'ID Peer de la personne avec qui vous voulez discuter");
-    if (peerId) {
-      connectToPeer(peerId);
-    }
-
-  </script>
+  
+  <!-- Inclusion du fichier JavaScript -->
+  <script src="script.js"></script>
 </body>
 </html>
